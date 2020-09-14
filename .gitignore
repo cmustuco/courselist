@@ -1,0 +1,16 @@
+# This sets the `.gitignore` to be a *whitelist* by default.
+**/**
+!*/
+
+
+#Whitelist
+!README.md
+!LICENSE
+!.gitignore
+
+!courselist.nimble
+
+!src/**/*.nim
+
+
+# Blacklist (overrides Whitelist)
