@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MIT
 # This file is part of the CourseList project under the MIT license.
 
+import algorithm
 import tables
 import sequtils
 import strutils
@@ -32,6 +33,10 @@ proc addEntry*(self: var CsvWriter, header: string, value: string) =
 
 proc nextRow*(self: var CsvWriter) =
   self.rows = concat(self.rows, @[initOrderedTable[string, string]()])
+
+proc sortRows*(self: var CsvWriter, header: string) =
+  self.rows.sort do (x, y: OrderedTable[string, string]) -> int:
+    cmp(x.getOrDefault(header, ""), y.getOrDefault(header, ""))
 
 proc writeFile*(self: CsvWriter, out_file_path: string) =
   var out_string = ""

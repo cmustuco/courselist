@@ -5,9 +5,13 @@
 
 import parsecsv
 import writecsv
+
 from os import paramStr
+import parseopt
 from sequtils import any
+
 import strutils
+import tables
 
 proc parseNewCourses(new_course_path: string, output: var CsvWriter) =
   var p: CsvParser
@@ -23,12 +27,20 @@ proc parseNewCourses(new_course_path: string, output: var CsvWriter) =
   assert headerExists("An SIO description for your course")
   assert headerExists("Instructor 1 Name")
   assert headerExists("Instructor 1 Andrew ID")
+  assert headerExists("Instructor 1 Academic Advisor Email")
+  assert headerExists("Instructor 1 Recommending Faculty Member Email")
   assert headerExists("Instructor 2 Name")
   assert headerExists("Instructor 2 Andrew ID")
+  assert headerExists("Instructor 2 Academic Advisor Email")
+  assert headerExists("Instructor 2 Recommending Faculty Member Email")
   assert headerExists("Instructor 3 Name")
   assert headerExists("Instructor 3 Andrew ID")
+  assert headerExists("Instructor 3 Academic Advisor Email")
+  assert headerExists("Instructor 3 Recommending Faculty Member Email")
   assert headerExists("Instructor 4 Name")
   assert headerExists("Instructor 4 Andrew ID")
+  assert headerExists("Instructor 4 Academic Advisor Email")
+  assert headerExists("Instructor 4 Recommending Faculty Member Email")
   assert headerExists("Start Time (earliest is 6:30pm)")
   assert headerExists("End Time")
   assert headerExists("Day of week")
@@ -39,7 +51,10 @@ proc parseNewCourses(new_course_path: string, output: var CsvWriter) =
     for i in @["1", "2", "3", "4"]:
       let iName = p.rowEntry("Instructor $1 Name" % [i])
       let iAndrew = p.rowEntry("Instructor $1 Andrew ID" % [i]).split('@')[0]
+      let iAdvisor = p.rowEntry("Instructor $1 Academic Advisor Email" % [i])
+      let iFaculty = p.rowEntry("Instructor $1 Recommending Faculty Member Email" % [i])
       if (iName.len() > 0 and iName.cmpIgnoreCase("N/A") != 0):
+        output.addEntry("Class Number", "98-XXX")
         output.addEntry("Long Title", p.rowEntry("Full Course Name"))
         output.addEntry("Short Title", p.rowEntry("Short Course Name (for SIO)"))
         output.addEntry("Returning Instructor?", "N")
@@ -52,10 +67,13 @@ proc parseNewCourses(new_course_path: string, output: var CsvWriter) =
         output.addEntry("End Time", p.rowEntry("End Time"))
         output.addEntry("Fee", p.rowEntry("Fees (if any)"))
         output.addEntry("Course Description", p.rowEntry("An SIO description for your course"))
+        output.addEntry("Advisor Email", iAdvisor)
+        output.addEntry("Recommending Faculty Email", iFaculty)
         output.nextRow()
 
 proc parseReturningCourses(
   returning_course_path: string,
+  previous_courselist_path: string = "",
   output: var CsvWriter
 ) =
   var p: CsvParser
@@ -70,31 +88,63 @@ proc parseReturningCourses(
   assert headerExists("If your course was not listed above, please fill it in below.")
   assert headerExists("Instructor 1 Name")
   assert headerExists("Instructor 1 Andrew ID")
+  assert headerExists("Instructor 1 Academic Advisor Email")
+  assert headerExists("Instructor 1 Recommending Faculty Email")
   assert headerExists("Instructor 2 Name")
   assert headerExists("Instructor 2 Andrew ID")
+  assert headerExists("Instructor 2 Academic Advisor Email")
+  assert headerExists("Instructor 2 Recommending Faculty Email")
   assert headerExists("Instructor 3 Name")
   assert headerExists("Instructor 3 Andrew ID")
+  assert headerExists("Instructor 3 Academic Advisor Email")
+  assert headerExists("Instructor 3 Recommending Faculty Email")
   assert headerExists("Instructor 4 Name")
   assert headerExists("Instructor 4 Andrew ID")
+  assert headerExists("Instructor 4 Academic Advisor Email")
+  assert headerExists("Instructor 4 Recommending Faculty Email")
   assert headerExists("Start Time (earliest is 6:30pm)")
   assert headerExists("End Time")
   assert headerExists("Day of week")
   assert headerExists("Updated course description (for SIO), if any")
   assert headerExists("Upload your most updated syllabus")
 
+  var prevCSV = initTable[string, seq[string]]()
+  if previous_courselist_path != "":
+    var p_prev: CsvParser
+    p_prev.open(previous_courselist_path)
+    p_prev.readHeaderRow()
+
+    proc prevHeaderExists(s: string): bool =
+      return any(p_prev.headers, proc(v: string): bool = return s == v)
+
+    assert prevHeaderExists("Class Number")
+    assert prevHeaderExists("Short Title")
+    assert prevHeaderExists("Course Description (no change or paste the new one here)")
+
+    while p_prev.readRow():
+      prevCSV[p_prev.rowEntry("Class Number")] = @[
+        p_prev.rowEntry("Short Title"),
+        p_prev.rowEntry("Course Description (no change or paste the new one here)")
+      ]
+
   # Parse rows and append to output CSV
   while p.readRow():
     for i in @["1", "2", "3", "4"]:
       let iName = p.rowEntry("Instructor $1 Name" % [i])
       let iAndrew = p.rowEntry("Instructor $1 Andrew ID" % [i]).split('@')[0]
+      let iAdvisor = p.rowEntry("Instructor $1 Academic Advisor Email" % [i])
+      let iFaculty = p.rowEntry("Instructor $1 Recommending Faculty Email" % [i])
       let prevTaught = p.row[p.headers.find("Instructor $1 Andrew ID" % [i]) + 1]
       if (iName.len() > 0 and iName.cmpIgnoreCase("N/A") != 0):
         var course = p.rowEntry("What course are you making the request for?")
-        if (course.splitWhitespace()[0] == "Other"):
+        var course_num = course.splitWhitespace()[0]
+        if (course_num == "Other"):
           course = p.rowEntry("If your course was not listed above, please fill it in below.")
+          course_num = course.splitWhitespace()[0]
 
-        output.addEntry("Class Number", course.splitWhitespace()[0])
+        output.addEntry("Class Number", course_num)
         output.addEntry("Long Title", course[7..<course.len()])
+        output.addEntry("Short Title", prevCSV.getOrDefault(course_num, @[""])[0])
         if (prevTaught.len() > 0):
           output.addEntry("Returning Instructor?", prevTaught[0..0])
         else:
@@ -107,11 +157,55 @@ proc parseReturningCourses(
         output.addEntry("Day", p.rowEntry("Day of week"))
         output.addEntry("Start Time", p.rowEntry("Start Time (earliest is 6:30pm)"))
         output.addEntry("End Time", p.rowEntry("End Time"))
-        output.addEntry("Course Description", p.rowEntry("Updated course description (for SIO), if any"))
+        var course_desc = p.rowEntry("Updated course description (for SIO), if any")
+        if course_desc == "" or
+          course_desc.cmpIgnoreCase("(no updates)") == 0 or
+          course_desc.cmpIgnoreCase("no updates") == 0 or
+          course_desc.cmpIgnoreCase("no update") == 0 or
+          course_desc.cmpIgnoreCase("(same course description as before)") == 0:
+          course_desc = prevCSV.getOrDefault(course_num, @["", ""])[1]
+        output.addEntry("Course Description", course_desc)
+        output.addEntry("Advisor Email", iAdvisor)
+        output.addEntry("Recommending Faculty Email", iFaculty)
         output.nextRow()
 
 when isMainModule:
-  # Instantiate headers
+  # Parse command line arguments
+
+  var newCoursesPath = ""
+  var returningCoursesPath = ""
+  var outputCourselistPath = ""
+  var prevCourselistPath = ""
+
+  var p = initOptParser()
+  while true:
+    p.next()
+    case p.kind
+    of cmdEnd: break
+    of cmdShortOption:
+      if p.key == "N":
+        newCoursesPath = p.val
+      elif p.key == "R":
+        returningCoursesPath = p.val
+      elif p.key == "P":
+        prevCourselistPath = p.val
+    of cmdLongOption:
+      if p.key == "NewCourses":
+        newCoursesPath = p.val
+      elif p.key == "ReturningCourses":
+        returningCoursesPath = p.val
+      elif p.key == "PreviousCourselist":
+        prevCourselistPath = p.val
+    of cmdArgument:
+      outputCourselistPath = p.key
+
+  if (outputCourselistPath == ""):
+    quit("An output CSV file path must be specified.")
+  if (prevCourselistPath != "" and returningCoursesPath == ""):
+    quit("Please specify a returning courses CSV file path to make " &
+          "use of the previous course list CSV.")
+
+  # Instantiate output headers
   var out_csv = initCsvWriter()
   out_csv.appendHeader("Class Number")  #
   out_csv.appendHeader("Long Title")  #
@@ -125,7 +219,9 @@ when isMainModule:
   out_csv.appendHeader("Contract")
   out_csv.appendHeader("Interviewed?")
   out_csv.appendHeader("Syllabus")  #
+  out_csv.appendHeader("Advisor Email")
   out_csv.appendHeader("Advisor Approval")
+  out_csv.appendHeader("Recommending Faculty Email")
   out_csv.appendHeader("Recommending Faculty Approval")
   out_csv.appendHeader("Room")
   out_csv.appendHeader("Room Type")
@@ -141,8 +237,10 @@ when isMainModule:
   out_csv.appendHeader("Audit Completion date")
 
   # Parse new and returning courses
-  parseNewCourses(paramStr(1), out_csv)
-  parseReturningCourses(paramStr(2), out_csv)
+  parseNewCourses(newCoursesPath, out_csv)
+  parseReturningCourses(returningCoursesPath, prevCourselistPath, out_csv)
+
+  out_csv.sortRows("Class Number")
 
   # Save output CSV
-  out_csv.writeFile(paramStr(3))
+  out_csv.writeFile(outputCourselistPath)
