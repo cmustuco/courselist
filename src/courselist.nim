@@ -38,6 +38,7 @@ proc parseNewCourses(new_course_path: string, output: var CsvWriter) =
   assert headerExists("What type of room would you need?")
   assert headerExists("Fees (if any)")
   assert headerExists("As of September 1st, 2020, we are unsure as to what teaching modalities will be available for the spring 2021 semester. If modality options were to remain the same as they are for the current fall 2020 semester, what would be your current teaching modality preference for spring 2021?")
+  assert headerExists("Max Enroll")
 
   # Parse rows and append to output CSV
   while p.readRow():
@@ -68,6 +69,7 @@ proc parseNewCourses(new_course_path: string, output: var CsvWriter) =
         output.addEntry("Recommending Faculty Name", iFacultyName)
         output.addEntry("Recommending Faculty Email", iFaculty)
         output.addEntry("Modality", p.rowEntry("As of September 1st, 2020, we are unsure as to what teaching modalities will be available for the spring 2021 semester. If modality options were to remain the same as they are for the current fall 2020 semester, what would be your current teaching modality preference for spring 2021?"))
+        output.addEntry("Max Size", p.rowEntry("Max Enroll"))
         output.nextRow()
 
 proc parseReturningCourses(
@@ -99,6 +101,7 @@ proc parseReturningCourses(
   assert headerExists("As of September 1st, 2020, we are unsure as to what teaching modalities will be available for the spring 2021 semester. If modality options were to remain the same as they are for the current fall 2020 semester, what would be your current teaching modality preference for spring 2021? ")
   assert headerExists("Updated course description (for SIO), if any")
   assert headerExists("Upload your most updated syllabus")
+  assert headerExists("Max enrollment for course")
 
   var prevCSV = initTable[string, seq[string]]()
   if previous_courselist_path != "":
@@ -112,11 +115,13 @@ proc parseReturningCourses(
     assert prevHeaderExists("Class Number")
     assert prevHeaderExists("Short Title")
     assert prevHeaderExists("Course Description (no change or paste the new one here)")
+    assert prevHeaderExists("Fee")
 
     while p_prev.readRow():
       prevCSV[p_prev.rowEntry("Class Number")] = @[
         p_prev.rowEntry("Short Title"),
-        p_prev.rowEntry("Course Description (no change or paste the new one here)")
+        p_prev.rowEntry("Course Description (no change or paste the new one here)"),
+        p_prev.rowEntry("Fee")
       ]
 
   # Parse rows and append to output CSV
@@ -165,6 +170,8 @@ proc parseReturningCourses(
         output.addEntry("Recommending Faculty Name", iFacultyName)
         output.addEntry("Recommending Faculty Email", iFaculty)
         output.addEntry("Modality", p.rowEntry("As of September 1st, 2020, we are unsure as to what teaching modalities will be available for the spring 2021 semester. If modality options were to remain the same as they are for the current fall 2020 semester, what would be your current teaching modality preference for spring 2021? "))
+        output.addEntry("Max Size", p.rowEntry("Max enrollment for course"))
+        output.addEntry("Fee", prevCSV.getOrDefault(course_num, @["", "", ""])[2])
         output.nextRow()
 
 when isMainModule:
