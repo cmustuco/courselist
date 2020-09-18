@@ -44,7 +44,9 @@ proc parseNewCourses(new_course_path: string, output: var CsvWriter) =
   assert headerExists("Start Time (earliest is 6:30pm)")
   assert headerExists("End Time")
   assert headerExists("Day of week")
+  assert headerExists("What type of room would you need?")
   assert headerExists("Fees (if any)")
+  assert headerExists("As of September 1st, 2020, we are unsure as to what teaching modalities will be available for the spring 2021 semester. If modality options were to remain the same as they are for the current fall 2020 semester, what would be your current teaching modality preference for spring 2021?")
 
   # Parse rows and append to output CSV
   while p.readRow():
@@ -65,10 +67,12 @@ proc parseNewCourses(new_course_path: string, output: var CsvWriter) =
         output.addEntry("Day", p.rowEntry("Day of week"))
         output.addEntry("Start Time", p.rowEntry("Start Time (earliest is 6:30pm)"))
         output.addEntry("End Time", p.rowEntry("End Time"))
+        output.addEntry("Room Type", p.rowEntry("What type of room would you need?"))
         output.addEntry("Fee", p.rowEntry("Fees (if any)"))
         output.addEntry("Course Description", p.rowEntry("An SIO description for your course"))
         output.addEntry("Advisor Email", iAdvisor)
         output.addEntry("Recommending Faculty Email", iFaculty)
+        output.addEntry("Modality", p.rowEntry("As of September 1st, 2020, we are unsure as to what teaching modalities will be available for the spring 2021 semester. If modality options were to remain the same as they are for the current fall 2020 semester, what would be your current teaching modality preference for spring 2021?"))
         output.nextRow()
 
 proc parseReturningCourses(
@@ -105,6 +109,8 @@ proc parseReturningCourses(
   assert headerExists("Start Time (earliest is 6:30pm)")
   assert headerExists("End Time")
   assert headerExists("Day of week")
+  assert headerExists("What type of room do you need?")
+  assert headerExists("As of September 1st, 2020, we are unsure as to what teaching modalities will be available for the spring 2021 semester. If modality options were to remain the same as they are for the current fall 2020 semester, what would be your current teaching modality preference for spring 2021? ")
   assert headerExists("Updated course description (for SIO), if any")
   assert headerExists("Upload your most updated syllabus")
 
@@ -157,6 +163,7 @@ proc parseReturningCourses(
         output.addEntry("Day", p.rowEntry("Day of week"))
         output.addEntry("Start Time", p.rowEntry("Start Time (earliest is 6:30pm)"))
         output.addEntry("End Time", p.rowEntry("End Time"))
+        output.addEntry("Room Type", p.rowEntry("What type of room do you need?"))
         var course_desc = p.rowEntry("Updated course description (for SIO), if any")
         if course_desc == "" or
           course_desc.cmpIgnoreCase("(no updates)") == 0 or
@@ -167,6 +174,7 @@ proc parseReturningCourses(
         output.addEntry("Course Description", course_desc)
         output.addEntry("Advisor Email", iAdvisor)
         output.addEntry("Recommending Faculty Email", iFaculty)
+        output.addEntry("Modality", p.rowEntry("As of September 1st, 2020, we are unsure as to what teaching modalities will be available for the spring 2021 semester. If modality options were to remain the same as they are for the current fall 2020 semester, what would be your current teaching modality preference for spring 2021? "))
         output.nextRow()
 
 when isMainModule:
@@ -224,12 +232,13 @@ when isMainModule:
   out_csv.appendHeader("Recommending Faculty Email")
   out_csv.appendHeader("Recommending Faculty Approval")
   out_csv.appendHeader("Room")
-  out_csv.appendHeader("Room Type")
+  out_csv.appendHeader("Room Type")  #
   out_csv.appendHeader("Max Size")
   out_csv.appendHeader("Day")  #
   out_csv.appendHeader("Start Time")  #
   out_csv.appendHeader("End Time")  #
   out_csv.appendHeader("Fee")  #
+  out_csv.appendHeader("Modality")
   out_csv.appendHeader("Course Description")  #
   out_csv.appendHeader("Added to S3 by Kristin")
   out_csv.appendHeader("Notes")
